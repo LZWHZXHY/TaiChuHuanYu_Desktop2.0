@@ -10,7 +10,7 @@ import VaultManager from '@/components/settings/VaultManager.vue';
 import VersionFooter from '@/components/settings/VersionFooter.vue';
 
 const { loadConfigDir } = useConfig();
-const { loadVaults: loadVaultsFromStore } = useVaults();
+const { loadVaults: _loadVaultsFromStore } = useVaults();
 
 onMounted(async () => {
   await loadConfigDir();

@@ -20,7 +20,10 @@ interface FileEntry {
 }
 
 const props = defineProps<{ rootPath: string }>();
-const emit = defineEmits<{ (e: 'fileClick', path: string): void }>();
+const emit = defineEmits<{ 
+  (e: 'fileClick', path: string): void;
+  (e: 'navigate-to-file', path: string): void;
+}>();
 
 // ===== 状态 =====
 const treeData = ref<FileEntry[]>([]);
@@ -31,7 +34,6 @@ const { searchQuery, isSearching, searchResults, onSearchInput, clearSearch, cle
 
 // ===== 最近打开 =====
 const { recentFiles, clearRecentFiles } = useRecentFiles();
-const showRecent = ref(true);
 
 // ===== Prompt 对话框 =====
 const promptVisible = ref(false);
@@ -90,13 +92,68 @@ async function loadTree() {
   isLoading.value = false;
 }
 
+
+
+// ===== 递归扫描全部 .md 文件（深搜所有子目录） =====
+async function scanAllMarkdown(dirPath: string): Promise<string[]> {
+  const results: string[] = [];
+  try {
+    const entries = await readDir(dirPath);
+    for (const entry of entries) {
+      const fullPath = await join(dirPath, entry.name);
+      if (entry.isFile && entry.name.endsWith('.md')) {
+        results.push(fullPath);
+      } else if (entry.isDirectory) {
+        const subResults = await scanAllMarkdown(fullPath);
+        results.push(...subResults);
+      }
+    }
+  } catch (e) {
+    console.warn('扫描目录失败:', dirPath, e);
+  }
+  return results;
+}
+
+// 缓存所有 .md 路径
+const allMarkdownPaths = ref<string[]>([]);
+
+// 刷新 .md 路径缓存
+async function refreshMarkdownCache() {
+  if (!props.rootPath) return;
+  allMarkdownPaths.value = await scanAllMarkdown(props.rootPath);
+}
+
+// 对外暴露获取 .md 路径的方法（供父组件和双链使用）
+function getCachedMarkdownPaths(): string[] {
+  return allMarkdownPaths.value;
+}
+
+// ===== 导航到指定文件（供双链跳转调用） =====
+function navigateToFile(filePath: string) {
+  // 检查文件是否存在（从缓存中验证）
+  if (!allMarkdownPaths.value.includes(filePath)) {
+    // 尝试刷新缓存后再查一次
+    refreshMarkdownCache().then(() => {
+      if (allMarkdownPaths.value.includes(filePath)) {
+        emit('navigate-to-file', filePath);
+        emit('fileClick', filePath);
+      } else {
+        console.warn('文件不存在:', filePath);
+      }
+    });
+    return;
+  }
+  emit('navigate-to-file', filePath);
+  emit('fileClick', filePath);
+}
+
 // ===== 右键菜单 =====
 const menuVisible = ref(false);
 const menuX = ref(0);
 const menuY = ref(0);
 const menuItems = ref<MenuItem[]>([]);
 
-function buildMenu(path: string, isFolder: boolean): MenuItem[] {
+function buildMenu(path: string, _isFolder: boolean): MenuItem[] {
   return [
     {
       label: '新建笔记',
@@ -170,10 +227,24 @@ function onRecentClick(path: string) {
   emit('fileClick', path);
 }
 
-defineExpose({ loadTree });
+// ===== 暴露给父组件 =====
+defineExpose({ 
+  loadTree, 
+  navigateToFile, 
+  getAllMarkdownPaths: getCachedMarkdownPaths,
+  refreshMarkdownCache,
+});
 
-watch(() => props.rootPath, loadTree, { immediate: true });
-onMounted(loadTree);
+// ===== 监听根路径变化 =====
+watch(() => props.rootPath, () => {
+  loadTree();
+  refreshMarkdownCache();
+}, { immediate: true });
+
+onMounted(() => {
+  loadTree();
+  refreshMarkdownCache();
+});
 </script>
 
 <template>
@@ -181,7 +252,7 @@ onMounted(loadTree);
     <!-- 头部 -->
     <div class="tree-header">
       <span class="vault-name">{{ rootPath.split(/[\\/]/).pop() || '仓库' }}</span>
-      <button class="refresh-btn" @click="loadTree" aria-label="刷新">↻</button>
+      <button class="refresh-btn" @click="() => { loadTree(); refreshMarkdownCache(); }" aria-label="刷新">↻</button>
     </div>
 
     <!-- 搜索框 -->
@@ -501,10 +572,6 @@ onMounted(loadTree);
   flex: 1;
   overflow-y: auto;
   padding: 8px 0 20px 0;
-}
-
-.tree-list {
-  /* 包裹文件树条目 */
 }
 
 .status-text {

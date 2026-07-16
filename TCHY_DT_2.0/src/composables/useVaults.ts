@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
-import { BaseDirectory } from '@tauri-apps/api/path';
+
 
 export interface Vault {
   id: string;

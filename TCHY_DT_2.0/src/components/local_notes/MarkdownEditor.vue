@@ -3,36 +3,57 @@
 import { ref, watch, computed } from 'vue';
 import CodeMirrorEditor from './CodeMirrorEditor.vue';
 import { marked } from 'marked';
+import { renderBiLinks, findNoteByName } from '@/utils/biLink';
 
 const props = defineProps<{
   filePath: string;
   content: string;
   isLoading?: boolean;
+  allMarkdownPaths?: string[];
+  backlinks?: string[]; // 反向链接文件路径列表
 }>();
 
 const emit = defineEmits<{
   (e: 'save', content: string): void;
+  (e: 'navigate-to-file', filePath: string): void;
+  (e: 'switch-to-graph'): void; // 新增：切换到图谱视图
 }>();
 
 const localContent = ref(props.content);
 const viewMode = ref<'edit' | 'preview' | 'split'>('edit');
 
-// 同步外部内容变化
 watch(() => props.content, (newVal) => {
   localContent.value = newVal;
 });
 
-// 保存
 function handleSave() {
   emit('save', localContent.value);
 }
 
-// 判断是否为 Markdown 文件
 const isMarkdown = (path: string) => {
   return path.endsWith('.md') || path.endsWith('.markdown');
 };
 
-// 渲染 HTML
+// ===== 双链渲染 =====
+const renderer = new marked.Renderer();
+
+renderer.paragraph = (token: any) => {
+  const text = token.text || '';
+  const allPaths = props.allMarkdownPaths || [];
+  const getNotePath = (name: string) => findNoteByName(name, allPaths);
+  const rendered = renderBiLinks(text, getNotePath);
+  return `<p>${rendered}</p>`;
+};
+
+renderer.text = (token: any) => {
+  const text = token.text || '';
+  const allPaths = props.allMarkdownPaths || [];
+  const getNotePath = (name: string) => findNoteByName(name, allPaths);
+  return renderBiLinks(text, getNotePath);
+};
+
+marked.use({ renderer });
+
 const renderedHtml = computed(() => {
   if (!localContent.value) return '';
   return marked(localContent.value, {
@@ -41,7 +62,34 @@ const renderedHtml = computed(() => {
   });
 });
 
-// 切换视图模式
+// ===== 预览模式点击双链跳转 =====
+function handleBiLinkClick(event: MouseEvent) {
+  const target = event.target as HTMLElement;
+  if (target.classList.contains('bi-link') || target.classList.contains('bi-link-broken')) {
+    event.preventDefault();
+    const noteName = target.dataset.note;
+    if (!noteName) return;
+    const allPaths = props.allMarkdownPaths || [];
+    const path = findNoteByName(noteName, allPaths);
+    if (path) {
+      emit('navigate-to-file', path);
+    } else {
+      console.warn(`笔记「${noteName}」不存在`);
+    }
+  }
+}
+
+// ===== 点击反向链接跳转 =====
+function handleBacklinkClick(filePath: string) {
+  emit('navigate-to-file', filePath);
+}
+
+// ===== 获取文件名（不含扩展名）=====
+function getFileName(filePath: string): string {
+  const name = filePath.split(/[\\/]/).pop() || filePath;
+  return name.replace(/\.md$/i, '');
+}
+
 function setViewMode(mode: 'edit' | 'preview' | 'split') {
   viewMode.value = mode;
 }
@@ -49,43 +97,22 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
 
 <template>
   <div class="editor">
-    <!-- 空状态 -->
     <div v-if="!filePath" class="placeholder">
       <div class="placeholder-icon">📄</div>
       <p>从左侧文件树选择笔记</p>
     </div>
 
-    <!-- 编辑器 -->
     <div v-else class="editor-wrapper">
-      <!-- 工具栏 -->
       <div class="toolbar">
         <span class="filename">{{ filePath.split(/[\\/]/).pop() }}</span>
         <div class="toolbar-actions">
-          <!-- 视图切换：纯文字按钮 -->
           <div class="view-toggle">
-            <button 
-              class="view-btn" 
-              :class="{ active: viewMode === 'edit' }"
-              @click="setViewMode('edit')"
-            >
-              编辑
-            </button>
-            <button 
-              class="view-btn" 
-              :class="{ active: viewMode === 'preview' }"
-              @click="setViewMode('preview')"
-            >
-              预览
-            </button>
-            <button 
-              class="view-btn" 
-              :class="{ active: viewMode === 'split' }"
-              @click="setViewMode('split')"
-            >
-              分屏
-            </button>
+            <button class="view-btn" :class="{ active: viewMode === 'edit' }" @click="setViewMode('edit')">编辑</button>
+            <button class="view-btn" :class="{ active: viewMode === 'preview' }" @click="setViewMode('preview')">预览</button>
+            <button class="view-btn" :class="{ active: viewMode === 'split' }" @click="setViewMode('split')">分屏</button>
+            <!-- 图谱切换按钮 -->
+            <button class="view-btn graph-btn" @click="$emit('switch-to-graph')" title="关系图谱">🕸</button>
           </div>
-
           <span v-if="!isMarkdown(filePath)" class="non-md-badge">只读</span>
           <button class="save-btn" @click="handleSave" :disabled="isLoading">
             {{ isLoading ? '保存中…' : '保存' }}
@@ -93,7 +120,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
         </div>
       </div>
 
-      <!-- 内容区域 -->
       <div class="content-area">
         <!-- 编辑器面板 -->
         <div 
@@ -106,7 +132,9 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
           <CodeMirrorEditor
             v-if="isMarkdown(filePath)"
             v-model="localContent"
+            :all-markdown-paths="props.allMarkdownPaths || []"
             @save="handleSave"
+            @navigate-to-file="(path) => emit('navigate-to-file', path)"
             :readonly="isLoading"
           />
           <div v-else class="non-md-preview">
@@ -130,7 +158,22 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
             borderLeft: viewMode === 'split' ? '1px solid #f0f0f0' : 'none'
           }"
         >
-          <div class="preview-content" v-html="renderedHtml"></div>
+          <div class="preview-content" v-html="renderedHtml" @click="handleBiLinkClick"></div>
+          
+          <!-- 反向链接区域 -->
+          <div v-if="backlinks && backlinks.length > 0" class="backlinks-section">
+            <div class="backlinks-header">
+              <span class="backlinks-title">↩ 反向链接</span>
+              <span class="backlinks-count">{{ backlinks.length }}</span>
+            </div>
+            <ul class="backlinks-list">
+              <li v-for="(linkPath, idx) in backlinks" :key="idx" class="backlinks-item">
+                <a href="#" @click.prevent="handleBacklinkClick(linkPath)" class="backlinks-link">
+                  {{ getFileName(linkPath) }}
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -146,8 +189,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   height: 100%;
   overflow: hidden;
 }
-
-/* === 空状态 === */
 .placeholder {
   flex: 1;
   display: flex;
@@ -167,8 +208,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   margin: 0;
   font-size: 15px;
 }
-
-/* === 编辑器主体 === */
 .editor-wrapper {
   flex: 1;
   display: flex;
@@ -176,8 +215,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   height: 100%;
   min-height: 0;
 }
-
-/* === 工具栏 === */
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -187,21 +224,17 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   flex-shrink: 0;
   background: #fafafa;
 }
-
 .filename {
   font-size: 14px;
   font-weight: 400;
   color: #1a1a1a;
   letter-spacing: 0.5px;
 }
-
 .toolbar-actions {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-
-/* === 视图切换按钮（纯文字） === */
 .view-toggle {
   display: flex;
   gap: 2px;
@@ -209,7 +242,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   border-radius: 6px;
   padding: 3px;
 }
-
 .view-btn {
   padding: 4px 14px;
   border: none;
@@ -230,7 +262,10 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   color: #1a1a1a;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
-
+.graph-btn {
+  font-size: 16px;
+  padding: 4px 10px;
+}
 .non-md-badge {
   font-size: 12px;
   color: #999;
@@ -239,7 +274,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   border-radius: 12px;
   letter-spacing: 0.3px;
 }
-
 .save-btn {
   padding: 6px 18px;
   background: #1a1a1a;
@@ -259,15 +293,12 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   opacity: 0.4;
   cursor: not-allowed;
 }
-
-/* === 内容区域（双列） === */
 .content-area {
   flex: 1;
   display: flex;
   overflow: hidden;
   min-height: 0;
 }
-
 .editor-pane {
   display: flex;
   flex-direction: column;
@@ -275,7 +306,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   height: 100%;
   transition: width 0.2s ease;
 }
-
 .preview-pane {
   display: flex;
   flex-direction: column;
@@ -284,8 +314,6 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   background: #fafafa;
   transition: width 0.2s ease;
 }
-
-/* === 预览内容 === */
 .preview-pane .preview-content {
   flex: 1;
   overflow-y: auto;
@@ -294,9 +322,32 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   font-size: 16px;
   line-height: 1.8;
   color: #1a1a1a;
+  border-bottom: 1px solid #f0f0f0;
 }
-
-/* 预览样式（极简） */
+.preview-content :deep(.bi-link) {
+  color: #0066cc;
+  text-decoration: none;
+  background: rgba(0,102,204,0.08);
+  padding: 0 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background .15s;
+}
+.preview-content :deep(.bi-link:hover) {
+  background: rgba(0,102,204,0.18);
+  text-decoration: underline;
+}
+.preview-content :deep(.bi-link-broken) {
+  color: #cc3333;
+  background: rgba(204,51,51,0.08);
+  padding: 0 4px;
+  border-radius: 4px;
+  cursor: default;
+  text-decoration: line-through;
+  opacity: .7;
+}
+/* 预览其他样式（标题、段落等） */
 .preview-content h1 {
   font-size: 2.2em;
   font-weight: 400;
@@ -347,7 +398,8 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   padding: 0;
   font-size: 14px;
 }
-.preview-content ul, .preview-content ol {
+.preview-content ul,
+.preview-content ol {
   padding-left: 24px;
   margin: 0.4em 0;
 }
@@ -376,7 +428,8 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   width: 100%;
   margin: 0.8em 0;
 }
-.preview-content th, .preview-content td {
+.preview-content th,
+.preview-content td {
   border: 1px solid #e0e0e0;
   padding: 6px 12px;
   text-align: left;
@@ -385,6 +438,54 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   background: #f5f5f5;
 }
 
+/* 反向链接样式 */
+.backlinks-section {
+  flex-shrink: 0;
+  padding: 16px 40px 24px 40px;
+  background: #ffffff;
+  border-top: 1px solid #f0f0f0;
+}
+.backlinks-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.backlinks-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #888;
+  letter-spacing: 0.5px;
+}
+.backlinks-count {
+  font-size: 12px;
+  color: #bbb;
+  background: #f0f0f0;
+  padding: 0 8px;
+  border-radius: 10px;
+}
+.backlinks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.backlinks-item {
+  padding: 4px 0;
+}
+.backlinks-link {
+  color: #0066cc;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.backlinks-link:hover {
+  text-decoration: underline;
+  color: #004499;
+}
+
+/* 滚动条 */
 .preview-content::-webkit-scrollbar {
   width: 4px;
 }
@@ -399,7 +500,7 @@ function setViewMode(mode: 'edit' | 'preview' | 'split') {
   background: #ccc;
 }
 
-/* === 非 Markdown 文件预览 === */
+/* 非 Markdown 预览 */
 .non-md-preview {
   flex: 1;
   display: flex;

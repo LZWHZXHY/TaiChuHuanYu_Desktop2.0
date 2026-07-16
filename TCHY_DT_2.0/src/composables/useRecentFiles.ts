@@ -1,5 +1,5 @@
 // src/composables/useRecentFiles.ts
-import { ref, watch } from 'vue';
+import { ref } from 'vue';
 
 export interface RecentFile {
   path: string;
