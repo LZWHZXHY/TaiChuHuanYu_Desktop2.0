@@ -16,7 +16,12 @@ const props = defineProps<{
   entry: FileEntry;
   depth: number;
 }>();
-const emit = defineEmits<{ (e: 'fileClick', path: string): void }>();
+
+// 增加 contextMenu 事件
+const emit = defineEmits<{
+  (e: 'fileClick', path: string): void;
+  (e: 'contextMenu', path: string, isFolder: boolean, x: number, y: number): void;
+}>();
 
 const isFolder = ref(props.entry.isDirectory);
 const isExpanded = ref(false);
@@ -46,6 +51,14 @@ async function toggleExpand() {
     console.error('读取子目录失败', e);
   }
 }
+
+// 右键菜单处理
+function handleContextMenu(e: MouseEvent) {
+  e.preventDefault();
+  e.stopPropagation();
+  // 传递路径、是否为文件夹、鼠标坐标
+  emit('contextMenu', props.entry.path, isFolder.value, e.clientX, e.clientY);
+}
 </script>
 
 <template>
@@ -54,6 +67,7 @@ async function toggleExpand() {
       class="tree-item" 
       :style="{ paddingLeft: (depth * 16 + 16) + 'px' }"
       @click="toggleExpand"
+      @contextmenu="handleContextMenu"
     >
       <span class="icon">{{ isFolder ? (isExpanded ? '▾' : '▸') : '·' }}</span>
       <span class="name">{{ entry.name }}</span>
@@ -65,6 +79,7 @@ async function toggleExpand() {
         :entry="child"
         :depth="depth + 1"
         @file-click="(path) => emit('fileClick', path)"
+        @context-menu="(path, isFolder, x, y) => emit('contextMenu', path, isFolder, x, y)"
       />
     </div>
   </div>

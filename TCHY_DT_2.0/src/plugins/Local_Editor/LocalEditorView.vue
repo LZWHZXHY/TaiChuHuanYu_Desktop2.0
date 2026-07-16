@@ -1,14 +1,18 @@
-<!-- src/plugins/LocalEditorView.vue -->
+<!-- src/plugins/local_notes/LocalEditorView.vue -->
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import FileTree from '@/components/FileTree.vue';
-import MarkdownEditor from '@/components/MarkdownEditor.vue';
+import FileTree from '@/components/local_notes/FileTree.vue';
+import MarkdownEditor from '@/components/local_notes/MarkdownEditor.vue';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { useRecentFiles } from '@/composables/useRecentFiles';
 
 const vaultPath = ref('');
 const currentFile = ref('');
 const fileContent = ref('');
 const isLoading = ref(false);
+
+// 最近打开
+const { addRecentFile } = useRecentFiles();
 
 onMounted(() => {
   const saved = localStorage.getItem('active-vault-path');
@@ -22,13 +26,19 @@ async function openFile(path: string) {
     return;
   }
   currentFile.value = path;
+  
+  // ✅ 记录到最近打开
+  addRecentFile(path);
+  
   try {
     isLoading.value = true;
     fileContent.value = await readTextFile(path);
   } catch (e) {
     fileContent.value = '读取文件失败';
+    console.error(e);
+  } finally {
+    isLoading.value = false;
   }
-  isLoading.value = false;
 }
 
 async function saveFile(content: string) {
@@ -39,8 +49,10 @@ async function saveFile(content: string) {
     alert('保存成功');
   } catch (e) {
     alert('保存失败');
+    console.error(e);
+  } finally {
+    isLoading.value = false;
   }
-  isLoading.value = false;
 }
 </script>
 
