@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { availablePlugins } from '@/plugins';
+import { ref, computed, onMounted } from 'vue';
+import { availablePlugins, loadPluginStates, setConfigDir } from '@/plugins';
 import Settings from '@/views/Settings.vue';
+import { invoke } from '@tauri-apps/api/core';
 
 const currentView = ref('website');
 
@@ -18,7 +19,23 @@ const currentComponent = computed(() => {
     return Settings;
   }
   const plugin = availablePlugins.find(p => p.id === currentView.value);
-  return plugin?.component; // 直接返回组件
+  return plugin?.component;
+});
+
+onMounted(async () => {
+  // 1. 从 localStorage 恢复配置目录
+  const saved = localStorage.getItem('config-dir');
+  if (saved) {
+    setConfigDir(saved);
+  } else {
+    // 如果没有保存过，获取程序所在目录作为默认
+    const dir = await invoke<string>('get_app_dir');
+    setConfigDir(dir);
+    localStorage.setItem('config-dir', dir);
+  }
+  
+  // 2. 从配置文件加载插件状态
+  await loadPluginStates();
 });
 </script>
 
@@ -90,7 +107,7 @@ html, body, #app {
 }
 
 .sidebar {
-  width: 120px; /* 改为固定宽度，或使用 auto 自适应 */
+  width: 120px;
   background: #ffffff;
   display: flex;
   flex-direction: column;
@@ -109,33 +126,31 @@ html, body, #app {
   margin-bottom: 32px;
   padding-bottom: 16px;
   border-bottom: 1px solid #f0f0f0;
-  /* 移除 writing-mode: vertical-rl，改为水平 */
   writing-mode: horizontal-tb;
 }
 
 .menu {
   display: flex;
   flex-direction: column;
-  gap: 2px; /* 减小间距 */
+  gap: 2px;
   flex: 1;
   width: 100%;
   -webkit-app-region: no-drag;
-  align-items: center; /* 居中对齐 */
+  align-items: center;
 }
 
 .menu-item {
-  padding: 8px 0; /* 上下小，左右由父容器控制 */
+  padding: 8px 0;
   cursor: pointer;
   font-size: 14px;
   font-weight: 300;
   color: #b0b0b0;
   letter-spacing: 2px;
-  /* 移除 vertical-rl */
   writing-mode: horizontal-tb;
   transition: color 0.2s ease;
   user-select: none;
   width: 100%;
-  text-align: center; /* 水平居中 */
+  text-align: center;
 }
 
 .menu-item:hover {
@@ -157,7 +172,7 @@ html, body, #app {
 }
 
 .content {
-  position: relative;  /* 新增：作为绝对定位子元素的锚点 */
+  position: relative;
   flex: 1;
   background: #ffffff;
   padding: 48px 56px;

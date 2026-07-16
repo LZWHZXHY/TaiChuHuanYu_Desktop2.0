@@ -1,12 +1,48 @@
 <script setup lang="ts">
-import { availablePlugins } from '@/plugins';
+import { ref, onMounted } from 'vue';
+import { availablePlugins, setConfigDir, savePluginStates } from '@/plugins';
+import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 
-const togglePlugin = (pluginId: string) => {
+const configDir = ref('');
+
+async function loadConfigDir() {
+  const saved = localStorage.getItem('config-dir');
+  if (saved) {
+    configDir.value = saved;
+  } else {
+    const dir = await invoke<string>('get_app_dir');
+    configDir.value = dir;
+    localStorage.setItem('config-dir', dir);
+  }
+  setConfigDir(configDir.value);
+}
+
+async function changeConfigDir() {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择配置文件存放目录',
+  });
+  if (selected && typeof selected === 'string') {
+    configDir.value = selected;
+    localStorage.setItem('config-dir', selected);
+    setConfigDir(selected);
+    await savePluginStates();
+  }
+}
+
+const togglePlugin = async (pluginId: string) => {
   const p = availablePlugins.find(p => p.id === pluginId);
   if (p) {
     p.enabled = !p.enabled;
+    await savePluginStates();
   }
 };
+
+onMounted(() => {
+  loadConfigDir();
+});
 </script>
 
 <template>
@@ -23,8 +59,8 @@ const togglePlugin = (pluginId: string) => {
         <h2 class="card-title">配置文件</h2>
         <div class="config-row">
           <span class="config-label">存储目录</span>
-          <span class="config-path">（默认）程序所在目录</span>
-          <button class="config-btn" disabled>更改</button>
+          <span class="config-path">{{ configDir }}</span>
+          <button class="config-btn" @click="changeConfigDir">更改</button>
         </div>
         <!-- 可添加更多配置项 -->
       </div>
@@ -130,12 +166,15 @@ const togglePlugin = (pluginId: string) => {
   padding: 4px 12px;
   border: 1px solid #ddd;
   background: #fff;
-  cursor: not-allowed;
+  cursor: pointer;
   font-size: 13px;
   border-radius: 3px;
-  color: #999;
+  color: #333;
   letter-spacing: 1px;
   margin-top: 4px;
+}
+.config-btn:hover {
+  background: #f5f5f5;
 }
 
 /* 插件列表 */
