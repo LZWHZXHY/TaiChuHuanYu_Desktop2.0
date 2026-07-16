@@ -1,0 +1,167 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { availablePlugins } from '@/plugins';
+import Settings from '@/views/Settings.vue';
+
+const currentView = ref('website');
+
+const enabledPlugins = computed(() => 
+  availablePlugins.filter(p => p.enabled)
+);
+
+const selectPlugin = (pluginId: string) => {
+  currentView.value = pluginId;
+};
+
+const currentComponent = computed(() => {
+  if (currentView.value === 'settings') {
+    return Settings;
+  }
+  const plugin = availablePlugins.find(p => p.id === currentView.value);
+  return plugin?.component; // 直接返回组件
+});
+</script>
+
+<template>
+  <div class="shell">
+    <!-- 左侧：极简文字菜单 -->
+    <nav class="sidebar">
+      <div class="logo">太初</div>
+      
+      <div class="menu">
+        <div 
+          v-for="plugin in enabledPlugins" 
+          :key="plugin.id"
+          class="menu-item"
+          :class="{ active: currentView === plugin.id }"
+          @click="selectPlugin(plugin.id)"
+        >
+          {{ plugin.name }}
+        </div>
+      </div>
+
+      <div class="menu-bottom">
+        <div 
+          class="menu-item"
+          :class="{ active: currentView === 'settings' }"
+          @click="currentView = 'settings'"
+        >
+          设置
+        </div>
+      </div>
+    </nav>
+
+    <!-- 右侧：留白内容区 -->
+    <main class="content">
+      <component :is="currentComponent" v-if="currentComponent" />
+    </main>
+  </div>
+</template>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
+</style>
+
+<style scoped>
+.shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background: #ffffff;
+  -webkit-app-region: drag;
+}
+
+.sidebar {
+  width: 120px; /* 改为固定宽度，或使用 auto 自适应 */
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0 24px 0;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  border-right: 1px solid #f0f0f0;
+}
+
+.logo {
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: 6px;
+  color: #1a1a1a;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  /* 移除 writing-mode: vertical-rl，改为水平 */
+  writing-mode: horizontal-tb;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* 减小间距 */
+  flex: 1;
+  width: 100%;
+  -webkit-app-region: no-drag;
+  align-items: center; /* 居中对齐 */
+}
+
+.menu-item {
+  padding: 8px 0; /* 上下小，左右由父容器控制 */
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 300;
+  color: #b0b0b0;
+  letter-spacing: 2px;
+  /* 移除 vertical-rl */
+  writing-mode: horizontal-tb;
+  transition: color 0.2s ease;
+  user-select: none;
+  width: 100%;
+  text-align: center; /* 水平居中 */
+}
+
+.menu-item:hover {
+  color: #666;
+}
+
+.menu-item.active {
+  color: #1a1a1a;
+  font-weight: 400;
+}
+
+.menu-bottom {
+  -webkit-app-region: no-drag;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 16px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.content {
+  position: relative;  /* 新增：作为绝对定位子元素的锚点 */
+  flex: 1;
+  background: #ffffff;
+  padding: 48px 56px;
+  overflow-y: auto;
+  -webkit-app-region: drag;
+}
+</style>
