@@ -172,11 +172,12 @@ html, body, #app {
 }
 
 .content {
-  position: relative;
   flex: 1;
   background: #ffffff;
-  padding: 48px 56px;
-  overflow-y: auto;
-  -webkit-app-region: drag;
+  padding: 0;                     /* 内边距交给子组件自行控制 */
+  overflow: hidden;              /* 父容器不滚动，由子组件负责 */
+  display: flex;
+  flex-direction: column;
+  -webkit-app-region: no-drag;
 }
 </style>
