@@ -1,15 +1,35 @@
 <!-- src/components/settings/VaultManager.vue -->
 <script setup lang="ts">
 import { useVaults } from '@/composables/useVaults';
+import { open } from '@tauri-apps/plugin-dialog';
 
-const { vaults, activeVaultId, addVault, setActiveVault, removeVault } = useVaults();
+const { vaults, activeVaultId, addVault, setActiveVault, removeVault, updateVault } = useVaults();
+
+// 选择缓存目录
+async function selectCacheDir(vaultId: string) {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择此仓库的图谱缓存目录',
+  });
+  if (selected && typeof selected === 'string') {
+    await updateVault(vaultId, { cacheDir: selected });
+    // 提示成功
+    alert(`✅ 缓存目录已更新为：${selected}`);
+  }
+}
+
+// 添加仓库
+async function addNewVault() {
+  await addVault();
+}
 </script>
 
 <template>
   <div class="settings-card vaults-card">
     <div class="vaults-header">
       <h2 class="card-title" style="margin-bottom:0;">本地笔记仓库</h2>
-      <button class="config-btn" @click="addVault">添加仓库</button>
+      <button class="config-btn" @click="addNewVault">添加仓库</button>
     </div>
     <div v-if="vaults.length === 0" class="vault-empty">
       暂无仓库，请点击“添加仓库”选择笔记文件夹。
@@ -25,8 +45,15 @@ const { vaults, activeVaultId, addVault, setActiveVault, removeVault } = useVaul
         <div class="vault-info">
           <span class="vault-name">{{ vault.name }}</span>
           <span class="vault-path">{{ vault.path }}</span>
+          <span v-if="vault.cacheDir" class="vault-cache-path">
+            🗂️ 缓存目录：{{ vault.cacheDir }}
+          </span>
+          <span v-else class="vault-cache-path" style="color: #bbb;">
+            🗂️ 缓存目录：默认（.tchy）
+          </span>
         </div>
         <div class="vault-actions">
+          <button class="vault-btn" @click.stop="selectCacheDir(vault.id)">设置缓存</button>
           <button class="vault-btn" @click.stop="setActiveVault(vault.id)">激活</button>
           <button class="vault-btn remove" @click.stop="removeVault(vault.id)">移除</button>
         </div>
@@ -107,6 +134,11 @@ const { vaults, activeVaultId, addVault, setActiveVault, removeVault } = useVaul
   font-size: 13px;
   color: #999;
   word-break: break-all;
+}
+.vault-cache-path {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
 }
 .vault-actions {
   display: flex;

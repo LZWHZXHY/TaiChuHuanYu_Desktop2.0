@@ -99,11 +99,10 @@ function getCursorPosition(editorView: EditorView): { top: number; left: number 
   const pos = editorView.state.selection.main.head;
   const coords = editorView.coordsAtPos(pos);
   if (!coords) return null;
-  const rect = editorRef.value?.getBoundingClientRect();
-  if (!rect) return null;
+  // coords 已经是相对于视口的坐标，直接用 bottom 和 left
   return {
-    top: rect.top + coords.top + 24,
-    left: rect.left + coords.left,
+    top: coords.bottom + 4,  // 光标下方 4px
+    left: coords.left,
   };
 }
 

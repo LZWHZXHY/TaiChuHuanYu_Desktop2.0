@@ -7,15 +7,16 @@
     "core:default",
     "opener:default",
     "dialog:allow-open",
-    "dialog:allow-confirm",
     "dialog:allow-message",
     "fs:allow-read-text-file",
     "fs:allow-write-text-file",
     "fs:allow-mkdir",
     "fs:allow-remove",
     "fs:allow-rename",
+    "dialog:allow-confirm",
     "fs:allow-read-dir",
-    
+    "fs:allow-exists",
+    "fs:allow-stat",
     {
       "identifier": "fs:scope",
       "allow": [{ "path": "**" }]
