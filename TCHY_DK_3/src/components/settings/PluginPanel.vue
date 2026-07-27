@@ -8,7 +8,7 @@
       <div v-for="(enabled, key) in settings.plugins" :key="key" class="plugin-item">
         <span class="plugin-name">{{ getPluginLabel(key) }}</span>
         <span class="plugin-status" :class="{ active: enabled }">
-          {{ enabled ? '✅ 已启用' : '⬜ 已禁用' }}
+          {{ enabled ? '✅ 已上线' : '⬜ 开发中' }}
         </span>
       </div>
     </div>

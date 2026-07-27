@@ -4,12 +4,13 @@ import { useSettingsStore } from '@/composables/useSettingsStore'
 import ConfigDirCard from './settings/ConfigDirCard.vue'
 import VaultManager from './settings/VaultManager.vue'
 import PluginPanel from './settings/PluginPanel.vue'
+import WindowSettings from './settings/WindowSettings.vue'   // ← 新增
 
-const { loadSettings, getConfigDir, configDir } = useSettingsStore()
+const { loadSettings, getConfigDir } = useSettingsStore()
 
 onMounted(async () => {
-  await loadSettings()   // 🆕 加载配置
-  await getConfigDir()   // 获取配置目录（用于显示）
+  await loadSettings()
+  await getConfigDir()
 })
 </script>
 
@@ -22,10 +23,10 @@ onMounted(async () => {
     <ConfigDirCard />
     <VaultManager />
     <PluginPanel />
+    <WindowSettings />   <!-- ← 新增 -->
 
-    <!-- 提示条保留 -->
-    <div style="margin-top: 24px; padding: 12px; background: #fff3cd; border-radius: 4px; font-size: 13px; color: #856404;">
-      ✅ 数据来自硬盘上的 settings.json
+    <div style="margin-top: 24px; padding: 12px; background: #e8f5e9; border-radius: 4px; font-size: 13px; color: #2e7d32;">
+      ✅ 窗口尺寸已同步到内存，等待保存功能
     </div>
   </div>
 </template>

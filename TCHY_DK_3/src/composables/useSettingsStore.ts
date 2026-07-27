@@ -8,14 +8,18 @@ export interface Vault {
   path: string
 }
 
+
 export interface Settings {
   vaults: Vault[]
   active_vault_path: string
   theme: string
   auto_save: boolean
+  window_width: number      // ← 新增
+  window_height: number     // ← 新增
   plugins: {
     local_editor: boolean
     web_viewer: boolean
+    asset_manager: boolean
   }
 }
 
@@ -45,7 +49,21 @@ export function useSettingsStore() {
       settings.value = null
     }
   }
+  async function saveSettings() {
+    if (!settings.value) {
+      console.warn('⚠️ 没有配置可保存')
+      return
+    }
 
+    try {
+      const json = JSON.stringify(settings.value, null, 2)
+      await invoke('save_settings', { settingsJson: json })
+      console.log('✅ 配置已保存到硬盘')
+    } catch (error) {
+      console.error('❌ 保存配置失败:', error)
+      throw error
+    }
+  }
   // 获取配置文件目录（用于显示）
   async function getConfigDir() {
     try {
@@ -86,6 +104,7 @@ export function useSettingsStore() {
     configDir,
     settings,
     loadSettings,    // 🆕 导出加载函数
+    saveSettings,
     getConfigDir,
     addVault,
     removeVault,
