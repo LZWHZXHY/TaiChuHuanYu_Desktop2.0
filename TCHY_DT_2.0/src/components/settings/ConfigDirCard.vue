@@ -19,7 +19,7 @@ async function selectDir() {
 
 <template>
   <div class="settings-card config-card">
-    <h2 class="card-title">配置文件</h2>
+    <h2 class="card-title">[配置文件]</h2>
     <div class="config-row">
       <span class="config-label">存储目录</span>
       <span class="config-path">{{ configDir }}</span>
