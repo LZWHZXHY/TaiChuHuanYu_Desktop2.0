@@ -1,5 +1,6 @@
 // src/composables/useSettingsStore.ts
 import { ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core'   // ← 改这一行
 
 export interface Vault {
   id: string
@@ -7,15 +8,55 @@ export interface Vault {
   path: string
 }
 
-// 全局单例状态（整个应用共享）
-const vaults = ref<Vault[]>([
-  { id: 'vault_1', name: '工作笔记', path: 'C:/Users/Admin/Documents/Work' },
-  { id: 'vault_2', name: '个人笔记', path: 'D:/MyNotes/Personal' },
-])
-const activeId = ref('vault_1')
-const configDir = ref('D:/我的软件/config (演示路径)')
+export interface Settings {
+  vaults: Vault[]
+  active_vault_path: string
+  theme: string
+  auto_save: boolean
+  plugins: {
+    local_editor: boolean
+    web_viewer: boolean
+  }
+}
+
+// 全局状态
+const vaults = ref<Vault[]>([])
+const activeId = ref<string>('')
+const configDir = ref('加载中...')
+const settings = ref<Settings | null>(null)
 
 export function useSettingsStore() {
+  // 🆕 从硬盘加载配置
+  async function loadSettings() {
+    try {
+      const json = await invoke<string>('get_settings')
+      const data = JSON.parse(json) as Settings
+      
+      settings.value = data
+      vaults.value = data.vaults || []
+      activeId.value = data.active_vault_path || ''
+      
+      console.log('✅ 配置已加载：', data)
+    } catch (error) {
+      console.error('❌ 加载配置失败：', error)
+      // 如果加载失败，使用空数据
+      vaults.value = []
+      activeId.value = ''
+      settings.value = null
+    }
+  }
+
+  // 获取配置文件目录（用于显示）
+  async function getConfigDir() {
+    try {
+      const appDir = await invoke<string>('get_app_dir')
+      configDir.value = `${appDir}/config`
+    } catch {
+      configDir.value = '未知'
+    }
+    return configDir.value
+  }
+
   function addVault(name: string, path: string) {
     const newId = `vault_${Date.now()}`
     vaults.value.push({ id: newId, name, path })
@@ -43,6 +84,9 @@ export function useSettingsStore() {
     vaults,
     activeId,
     configDir,
+    settings,
+    loadSettings,    // 🆕 导出加载函数
+    getConfigDir,
     addVault,
     removeVault,
     setActive,
