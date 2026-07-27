@@ -1,9 +1,8 @@
-<!-- src/components/settings/VaultManager.vue -->
 <template>
   <div class="card">
     <div class="header">
       <h3 class="card-title">本地笔记仓库</h3>
-      <button class="btn-add" @click="openAddDialog">＋ 添加仓库</button>
+      <button class="btn-add" @click="addNewVault">+ 添加仓库</button>
     </div>
 
     <div v-if="vaults.length === 0" class="empty">
@@ -15,7 +14,7 @@
         <div class="vault-info">
           <span class="vault-name">{{ vault.name }}</span>
           <span class="vault-path">{{ vault.path }}</span>
-          <span v-if="activeId === vault.id" class="badge">当前</span>
+          <span v-if="activeId === vault.path" class="badge">当前</span>
         </div>
         <div class="vault-actions">
           <button class="btn-action" @click="setActive(vault.id)">激活</button>
@@ -28,26 +27,38 @@
 
 <script setup lang="ts">
 import { useSettingsStore } from '@/composables/useSettingsStore'
+import { open } from '@tauri-apps/plugin-dialog'
 
 const { vaults, activeId, addVault, removeVault, setActive } = useSettingsStore()
 
-// 模拟添加对话框（后续替换为真实文件夹选择）
-function openAddDialog() {
-  // 临时模拟：弹出输入框让用户输入路径和名称
-  const name = prompt('请输入仓库名称：')
-  if (!name) return
-  const path = prompt('请输入仓库路径（文件夹地址）：')
-  if (!path) return
-  addVault(name, path)
+async function addNewVault() {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: '选择笔记文件夹',
+  })
+  if (selected && typeof selected === 'string') {
+    const name = selected.split(/[\\/]/).pop() || '未命名'
+    await addVault(name, selected)
+  }
 }
 </script>
 
 <style scoped>
+/* 样式与之前保持一致，这里是极简版本，如果你需要可以复制之前的样式，或者直接使用全局样式 */
 .card {
-  background: #fafafa;
-  padding: 16px 20px;
-  border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  padding: 20px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.card:last-child {
+  border-bottom: none;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: #999;
+  letter-spacing: 0.3px;
+  margin: 0 0 12px 0;
 }
 .header {
   display: flex;
@@ -55,31 +66,29 @@ function openAddDialog() {
   align-items: center;
   margin-bottom: 16px;
 }
-.card-title {
-  margin: 0;
-  font-weight: 400;
-  font-size: 14px;
-  color: #888;
-}
 .btn-add {
-  padding: 4px 16px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: #bbb;
+  font-size: 14px;
   cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0;
+}
+.btn-add:hover {
+  color: #1a1a1a;
 }
 .empty {
-  color: #bbb;
-  padding: 20px 0;
-  text-align: center;
+  color: #ddd;
   font-size: 14px;
+  padding: 12px 0;
 }
 .vault-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
 }
 .vault-item:last-child {
   border-bottom: none;
@@ -88,34 +97,39 @@ function openAddDialog() {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
 }
 .vault-name {
-  font-weight: 500;
+  font-size: 14px;
+  color: #1a1a1a;
 }
 .vault-path {
-  color: #999;
   font-size: 13px;
+  color: #bbb;
 }
 .badge {
-  background: #42b883;
-  color: white;
   font-size: 11px;
-  padding: 1px 8px;
+  color: #1a1a1a;
+  border: 1px solid #1a1a1a;
+  padding: 0 6px;
   border-radius: 10px;
 }
 .vault-actions {
   display: flex;
-  gap: 8px;
+  gap: 12px;
 }
 .btn-action {
+  background: transparent;
   border: none;
-  background: none;
+  color: #bbb;
   cursor: pointer;
   font-size: 13px;
-  color: #42b883;
+  transition: color 0.2s ease;
+  padding: 0;
 }
-.btn-action.remove {
+.btn-action:hover {
+  color: #1a1a1a;
+}
+.btn-action.remove:hover {
   color: #e74c3c;
 }
 </style>
