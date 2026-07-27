@@ -1,20 +1,13 @@
-<!-- src/components/settings/ConfigDirCard.vue -->
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { useConfig } from '@/composables/useConfig';
-import { open } from '@tauri-apps/plugin-dialog';
 
-const { configDir, changeConfigDir } = useConfig();
+const { getConfigDir } = useConfig();
+const configDir = ref('加载中...');
 
-async function selectDir() {
-  const selected = await open({
-    directory: true,
-    multiple: false,
-    title: '选择配置文件存放目录',
-  });
-  if (selected && typeof selected === 'string') {
-    await changeConfigDir(selected);
-  }
-}
+onMounted(async () => {
+  configDir.value = await getConfigDir();
+});
 </script>
 
 <template>
@@ -23,13 +16,13 @@ async function selectDir() {
     <div class="config-row">
       <span class="config-label">存储目录</span>
       <span class="config-path">{{ configDir }}</span>
-      <button class="config-btn" @click="selectDir">更改</button>
+      <!-- 删除“更改”按钮，因为路径是固定的 -->
     </div>
   </div>
 </template>
 
 <style scoped>
-/* 复制原有样式 */
+/* 样式保持不变（或者适当调整间距） */
 .settings-card {
   background: #fafafa;
   border-radius: 8px;
@@ -65,19 +58,5 @@ async function selectDir() {
   color: #888;
   font-weight: 300;
   word-break: break-all;
-}
-.config-btn {
-  padding: 4px 12px;
-  border: 1px solid #ddd;
-  background: #fff;
-  cursor: pointer;
-  font-size: 13px;
-  border-radius: 3px;
-  color: #333;
-  letter-spacing: 1px;
-  margin-top: 4px;
-}
-.config-btn:hover {
-  background: #f5f5f5;
 }
 </style>
