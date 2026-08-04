@@ -177,17 +177,22 @@ body,
   list-style: none;
 }
 
+
 /* ---------- 内容区 ---------- */
 .content {
   flex: 1;
-  padding: 32px 40px;
-  overflow-y: auto;
+  /* 移除全局 padding: 32px 40px; 改由内部组件自行控制内边距 */
+  padding: 0; 
+  overflow: hidden; /* 防止外层出现多余滚动条 */
   background: #ffffff;
+  display: flex;       /* 新增：开启 flex 布局 */
+  flex-direction: column; /* 新增：纵向排列 */
 }
 
 .page {
   max-width: 960px;
   margin: 0 auto;
+  padding: 32px 40px; /* 如果有普通 .page 页面，把内边距加在这里 */
 }
 
 /* ---------- 卡片 ---------- */

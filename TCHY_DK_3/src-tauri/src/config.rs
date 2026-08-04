@@ -43,6 +43,7 @@ pub fn ensure_default_config() {
         "auto_save": true,
         "window_width": 1280,
         "window_height": 720,
+        "token": "",
         "plugins": {
             "local_editor": true,
             "web_viewer": false,

@@ -14,6 +14,7 @@ export interface Settings {
   auto_save: boolean
   window_width: number
   window_height: number
+  token: string // <-- 1. 新增 token 字段类型
   plugins: {
     local_editor: boolean
     web_viewer: boolean
@@ -28,6 +29,7 @@ const defaultSettings: Settings = {
   auto_save: true,
   window_width: 1280,
   window_height: 720,
+  token: '', // <-- 2. 设置默认空值
   plugins: {
     local_editor: true,
     web_viewer: false,
